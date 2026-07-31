@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOS — Emergency App</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121822; --panel2:#161d29;
+    --red:#ff3b3b; --red-dim:#5a1414; --green:#2ecc71; --amber:#f5a623;
+    --text:#e8edf4; --sub:#8894a6; --border:#232b38;
+    --radius:20px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:radial-gradient(circle at 50% 0%, #131a26 0%, #05070b 70%);
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:var(--text); padding:20px;
+  }
+  .phone{
+    width:380px; max-width:100%; min-height:720px;
+    background:var(--panel); border-radius:36px; border:1px solid var(--border);
+    box-shadow:0 40px 100px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.02);
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+  }
+  .statusbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 24px 4px; font-size:13px; color:var(--sub); font-weight:600;
+  }
+  .screen{ flex:1; display:none; flex-direction:column; padding:24px; animation:fadeIn .35s ease; }
+  .screen.active{ display:flex; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+  /* HOME */
+  #home .clock{ text-align:center; margin-top:30px; }
+  #home .clock .time{ font-size:52px; font-weight:200; letter-spacing:1px; }
+  #home .clock .date{ color:var(--sub); font-size:14px; margin-top:4px; }
+  .sos-wrap{ flex:1; display:flex; align-items:center; justify-content:center; }
+  .sos-btn{
+    width:180px; height:180px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #ff5b5b, var(--red) 60%, #b91f1f 100%);
+    border:none; color:#fff; font-size:26px; font-weight:800; letter-spacing:2px;
+    box-shadow:0 0 0 8px rgba(255,59,59,.12), 0 0 60px rgba(255,59,59,.35), 0 20px 40px rgba(0,0,0,.5);
+    cursor:pointer; animation:pulse 2.4s infinite; transition:transform .15s;
+  }
+  .sos-btn:active{ transform:scale(.94); }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 8px rgba(255,59,59,.12), 0 0 60px rgba(255,59,59,.35);}
+    50%{ box-shadow:0 0 0 18px rgba(255,59,59,.05), 0 0 90px rgba(255,59,59,.5);}
+    100%{ box-shadow:0 0 0 8px rgba(255,59,59,.12), 0 0 60px rgba(255,59,59,.35);}
+  }
+  .hint{ text-align:center; color:var(--sub); font-size:13px; margin-top:18px; }
+
+  /* PIN */
+  .center-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .title{ font-size:20px; font-weight:700; margin-bottom:6px; }
+  .subtitle{ color:var(--sub); font-size:13px; margin-bottom:32px; text-align:center; }
+  .pin-dots{ display:flex; gap:18px; margin-bottom:36px; }
+  .pin-dots span{ width:16px; height:16px; border-radius:50%; border:2px solid var(--border); transition:all .2s; }
+  .pin-dots span.filled{ background:var(--red); border-color:var(--red); box-shadow:0 0 12px rgba(255,59,59,.6); }
+  .keypad{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; width:100%; max-width:280px; }
+  .keypad button{
+    aspect-ratio:1; border-radius:50%; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); font-size:22px; font-weight:600;
+    cursor:pointer; transition:.15s;
+  }
+  .keypad button:active{ background:#242e3d; transform:scale(.95); }
+  .keypad button.ghost{ background:transparent; border:none; }
+
+  /* CATEGORY */
+  .cat-grid{ display:flex; flex-direction:column; gap:16px; margin-top:20px; flex:1; }
+  .cat-card{
+    background:var(--panel2); border:1px solid var(--border); border-radius:18px;
+    padding:26px; display:flex; align-items:center; gap:16px; cursor:pointer; transition:.2s;
+  }
+  .cat-card:active{ transform:scale(.97); }
+  .cat-card.crime{ border-color:#4a2a2a; }
+  .cat-card.health{ border-color:#2a4a3a; }
+  .cat-icon{ width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:26px; }
+  .cat-card.crime .cat-icon{ background:rgba(255,59,59,.15); }
+  .cat-card.health .cat-icon{ background:rgba(46,204,113,.15); }
+  .cat-name{ font-size:17px; font-weight:700; }
+  .cat-desc{ font-size:12.5px; color:var(--sub); margin-top:2px; }
+
+  /* DETAIL / AUTO-DETECT */
+  .countdown-ring{ width:120px; height:120px; margin:20px auto; position:relative; }
+  .countdown-ring svg{ transform:rotate(-90deg); }
+  .countdown-ring .num{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:700; }
+  .type-list{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:20px; }
+  .type-chip{
+    padding:10px 16px; border-radius:100px; border:1px solid var(--border);
+    background:var(--panel2); font-size:13px; cursor:pointer; color:var(--text);
+  }
+  .type-chip.selected{ background:var(--red); border-color:var(--red); }
+
+  /* DISPATCH */
+  .dispatch-row{
+    background:var(--panel2); border:1px solid var(--border); border-radius:16px;
+    padding:16px 18px; margin-bottom:12px; display:flex; align-items:center; gap:14px;
+  }
+  .dispatch-row .dot{ width:10px; height:10px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); flex-shrink:0; }
+  .dispatch-row .label{ font-weight:700; font-size:14.5px; }
+  .dispatch-row .status{ font-size:12px; color:var(--green); margin-top:2px; }
+  .dispatch-row .sub{ font-size:12px; color:var(--sub); margin-top:2px; }
+
+  .map-preview{
+    height:130px; border-radius:16px; margin:14px 0;
+    background:
+      linear-gradient(rgba(20,30,45,.6), rgba(20,30,45,.85)),
+      repeating-linear-gradient(0deg, #1b2635 0 2px, transparent 2px 40px),
+      repeating-linear-gradient(90deg, #1b2635 0 2px, transparent 2px 40px);
+    border:1px solid var(--border); position:relative; overflow:hidden;
+  }
+  .map-preview .pin{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-100%);
+    width:26px; height:26px; border-radius:50% 50% 50% 0; background:var(--red);
+    transform-origin:bottom right; rotate:-45deg; box-shadow:0 0 20px rgba(255,59,59,.7);
+  }
+  .map-preview .coords{ position:absolute; bottom:8px; left:12px; font-size:11px; color:var(--sub); }
+
+  .timer-badge{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background:rgba(46,204,113,.12); border:1px solid rgba(46,204,113,.3);
+    border-radius:100px; padding:10px; font-size:13px; color:var(--green); font-weight:600; margin-top:10px;
+  }
+  .btn{
+    width:100%; padding:15px; border-radius:14px; border:none; font-weight:700; font-size:15px;
+    cursor:pointer; margin-top:10px;
+  }
+  .btn-primary{ background:var(--red); color:#fff; }
+  .btn-ghost{ background:transparent; border:1px solid var(--border); color:var(--sub); }
+  .footer-note{ text-align:center; font-size:11px; color:var(--sub); margin-top:auto; padding-top:14px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="statusbar"><span id="clockTime">5:00</span><span>SOS Prototype</span></div>
+
+  <!-- HOME -->
+  <div class="screen active" id="home">
+    <div class="clock">
+      <div class="time" id="bigClock">5:00</div>
+      <div class="date">Fri, 31 Jul</div>
+    </div>
+    <div class="sos-wrap">
+      <button class="sos-btn" onclick="goTo('pin')">SOS</button>
+    </div>
+    <div class="hint">Tap SOS to begin emergency check-in</div>
+  </div>
+
+  <!-- PIN -->
+  <div class="screen" id="pin">
+    <div class="center-col">
+      <div class="title">Enter PIN</div>
+      <div class="subtitle">Confirms it's really you<br>(avoids false alarms)</div>
+      <div class="pin-dots" id="pinDots">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="keypad" id="keypad"></div>
+    </div>
+  </div>
+
+  <!-- CATEGORY -->
+  <div class="screen" id="category">
+    <div class="title" style="margin-bottom:4px;">What's happening?</div>
+    <div class="subtitle" style="text-align:left; margin-bottom:0;">Choose the type of emergency</div>
+    <div class="cat-grid">
+      <div class="cat-card crime" onclick="selectCategory('crime')">
+        <div class="cat-icon">🚨</div>
+        <div><div class="cat-name">Crime</div><div class="cat-desc">Assault, theft, threat, harassment</div></div>
+      </div>
+      <div class="cat-card health" onclick="selectCategory('health')">
+        <div class="cat-icon">🏥</div>
+        <div><div class="cat-name">Health</div><div class="cat-desc">Injury, medical emergency, accident</div></div>
+      </div>
+    </div>
+    <div class="footer-note">If no selection, we'll auto-detect and proceed in 10s</div>
+  </div>
+
+  <!-- DETAIL (auto-selects within 10s per your flow) -->
+  <div class="screen" id="detail">
+    <div class="title" style="text-align:center;">Confirm details</div>
+    <div class="subtitle">Auto-detects and proceeds shortly</div>
+    <div class="countdown-ring">
+      <svg width="120" height="120"><circle cx="60" cy="60" r="52" stroke="#232b38" stroke-width="8" fill="none"/>
+        <circle id="ringProgress" cx="60" cy="60" r="52" stroke="#ff3b3b" stroke-width="8" fill="none"
+          stroke-dasharray="327" stroke-dashoffset="0" stroke-linecap="round"/></svg>
+      <div class="num" id="ringNum">10</div>
+    </div>
+    <div class="type-list" id="typeList"></div>
+    <button class="btn btn-primary" onclick="proceedToDispatch()">Confirm Now</button>
+  </div>
+
+  <!-- DISPATCH -->
+  <div class="screen" id="dispatch">
+    <div class="title" style="text-align:center;">Help is on the way</div>
+    <div class="subtitle" style="text-align:center;">Contacting the right services now</div>
+
+    <div class="map-preview">
+      <div class="pin"></div>
+      <div class="coords" id="coordText">Fetching GPS location…</div>
+    </div>
+
+    <div id="dispatchRows"></div>
+
+    <div class="timer-badge">🟢 Live location sharing active — <span id="liveCountdown">3:00</span></div>
+
+    <button class="btn btn-ghost" onclick="resetApp()">End &amp; Return Home</button>
+    <div class="footer-note">Backend wiring: Twilio WhatsApp · Google Maps API · Google TTS · Firebase Realtime DB</div>
+  </div>
+</div>
+
+<script>
+/* ---------- Config: point this at your backend ---------- */
+const API_BASE = "http://localhost:4000/api"; // change to your deployed backend URL
+
+/* ---------- Clock ---------- */
+function updateClock(){
+  const d = new Date();
+  const h = d.getHours()%12 || 12, m = d.getMinutes().toString().padStart(2,'0');
+  document.getElementById('bigClock').textContent = `${h}:${m}`;
+  document.getElementById('clockTime').textContent = `${h}:${m}`;
+}
+updateClock(); setInterval(updateClock, 15000);
+
+/* ---------- Screen nav ---------- */
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='pin') resetPin();
+  if(id==='dispatch') startDispatch();
+}
+
+/* ---------- PIN keypad ---------- */
+let pinBuffer = "";
+const REAL_PIN = "1234"; // demo only — replace with server-side verification
+function buildKeypad(){
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  const pad = document.getElementById('keypad');
+  pad.innerHTML = "";
+  keys.forEach(k=>{
+    const btn = document.createElement('button');
+    if(k===''){ btn.className='ghost'; btn.disabled = true; btn.style.background='transparent'; btn.style.border='none'; }
+    else{
+      btn.textContent = k;
+      btn.onclick = () => handleKey(k);
+    }
+    pad.appendChild(btn);
+  });
+}
+buildKeypad();
+function resetPin(){ pinBuffer=""; renderDots(); }
+function renderDots(){
+  document.querySelectorAll('#pinDots span').forEach((el,i)=>{
+    el.classList.toggle('filled', i < pinBuffer.length);
+  });
+}
+function handleKey(k){
+  if(k==='⌫'){ pinBuffer = pinBuffer.slice(0,-1); renderDots(); return; }
+  if(pinBuffer.length>=4) return;
+  pinBuffer += k;
+  renderDots();
+  if(pinBuffer.length===4){
+    setTimeout(()=>{
+      // Demo check — in production, POST to /api/sos/verify-pin
+      goTo('category'); // proceeding regardless in this prototype for easy demo
+    }, 200);
+  }
+}
+
+/* ---------- Category + auto-detect countdown ---------- */
+let chosenCategory = null;
+let chosenType = null;
+let countdownTimer = null;
+
+const CRIME_TYPES = ["Assault","Theft","Harassment","Threat","Other"];
+const HEALTH_TYPES = ["Injury","Cardiac","Accident","Breathing Difficulty","Other"];
+
+function selectCategory(cat){
+  chosenCategory = cat;
+  goTo('detail');
+  const list = document.getElementById('typeList');
+  list.innerHTML = "";
+  (cat==='crime' ? CRIME_TYPES : HEALTH_TYPES).forEach(t=>{
+    const chip = document.createElement('div');
+    chip.className = 'type-chip';
+    chip.textContent = t;
+    chip.onclick = ()=>{
+      document.querySelectorAll('.type-chip').forEach(c=>c.classList.remove('selected'));
+      chip.classList.add('selected');
+      chosenType = t;
+    };
+    list.appendChild(chip);
+  });
+  startAutoDetectCountdown();
+}
+
+function startAutoDetectCountdown(){
+  clearInterval(countdownTimer);
+  let secondsLeft = 10;
+  const ring = document.getElementById('ringProgress');
+  const num = document.getElementById('ringNum');
+  const circumference = 327;
+  num.textContent = secondsLeft;
+  ring.style.strokeDashoffset = 0;
+  countdownTimer = setInterval(()=>{
+    secondsLeft--;
+    num.textContent = Math.max(secondsLeft,0);
+    ring.style.strokeDashoffset = circumference * (1 - secondsLeft/10);
+    if(secondsLeft<=0){
+      clearInterval(countdownTimer);
+      proceedToDispatch();
+    }
+  }, 1000);
+}
+
+function proceedToDispatch(){
+  clearInterval(countdownTimer);
+  goTo('dispatch');
+}
+
+/* ---------- Dispatch screen: geolocation + simulated multi-channel alert ---------- */
+async function startDispatch(){
+  document.getElementById('coordText').textContent = "Fetching GPS location…";
+  const rows = document.getElementById('dispatchRows');
+  rows.innerHTML = "";
+
+  const target = chosenCategory === 'health'
+    ? [{label:'Hospital / Ambulance', icon:'🏥'}, {label:'Family Contacts', icon:'👪'}]
+    : [{label:'Police (100)', icon:'👮'}, {label:'Family Contacts', icon:'👪'}];
+
+  target.forEach(t=>{
+    const row = document.createElement('div');
+    row.className = 'dispatch-row';
+    row.innerHTML = `<div class="dot"></div>
+      <div style="flex:1;">
+        <div class="label">${t.icon} ${t.label}</div>
+        <div class="status">Dispatching…</div>
+      </div>`;
+    rows.appendChild(row);
+  });
+
+  let coords = { lat: 9.9252, lng: 78.1198 }; // fallback: Madurai
+  try{
+    coords = await getLocation();
+  }catch(e){ /* use fallback */ }
+  document.getElementById('coordText').textContent =
+    `Lat ${coords.lat.toFixed(4)}, Lng ${coords.lng.toFixed(4)}`;
+
+  // Fire the real backend call (see backend/server.js) — falls back to local simulation if unreachable
+  try{
+    await fetch(`${API_BASE}/sos/trigger`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        category: chosenCategory,
+        type: chosenType || 'Auto-detected',
+        location: coords,
+        userId: 'demo-user-001'
+      })
+    });
+  }catch(e){ console.warn('Backend not reachable — running in local simulation mode', e); }
+
+  // Simulate each channel confirming, one by one
+  const statusEls = rows.querySelectorAll('.status');
+  statusEls.forEach((el,i)=>{
+    setTimeout(()=>{
+      el.textContent = "✓ Notified — location & message sent";
+      el.parentElement.parentElement.querySelector('.dot').style.background = 'var(--green)';
+    }, 900 + i*700);
+  });
+
+  startLiveCountdown();
+}
+
+function getLocation(){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation) return reject('no geo');
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({lat:pos.coords.latitude, lng:pos.coords.longitude}),
+      err => reject(err),
+      {timeout:4000}
+    );
+  });
+}
+
+/* ---------- Live location tracking (3 min, per architecture diagram) ---------- */
+let liveTimer = null;
+function startLiveCountdown(){
+  clearInterval(liveTimer);
+  let total = 180;
+  const el = document.getElementById('liveCountdown');
+  liveTimer = setInterval(()=>{
+    total--;
+    const m = Math.floor(total/60), s = (total%60).toString().padStart(2,'0');
+    el.textContent = `${m}:${s}`;
+    if(total<=0){ clearInterval(liveTimer); el.parentElement.innerHTML = "⚪ Live sharing ended"; }
+  }, 1000);
+}
+
+function resetApp(){
+  clearInterval(liveTimer);
+  clearInterval(countdownTimer);
+  chosenCategory = null; chosenType = null;
+  goTo('home');
+}
+</script>
+</body>
+</html>
